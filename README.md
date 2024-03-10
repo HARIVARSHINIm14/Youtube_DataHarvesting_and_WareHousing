@@ -17,3 +17,4 @@ Youtube channel details are retrieved using Youtube data API application after g
 7.import re - The re module is the regular expression module in Python. It provides functions for working with regular expressions, which are powerful tools for pattern matching in strings. In your code, it might be used for string manipulation or validation.
 
 after extracting it , it is saved in MongoDB and then transefered to SQL. once it is all done then finally it is deployed in streamlit application.
+
