@@ -1,3 +1,4 @@
+#libraries
 from googleapiclient.discovery import build
 from pymongo import MongoClient
 import mysql.connector 
@@ -113,7 +114,7 @@ def channel_videos(videos):
     return video_data
 
 
-#comments
+#comments details
 def channel_comments(videos):
     Comment_data=[]
     try:
@@ -136,9 +137,8 @@ def channel_comments(videos):
     except:
         pass
     return Comment_data
-
+#mongo connections
 connections=MongoClient("mongodb://localhost:27017")
-#connections:lYBHvgvoKcSQRTsK
 db = connections['Youtube_data']
 def channels(channel_id):
     ch_detail=channel_info(channel_id)
@@ -207,7 +207,6 @@ def channeli_table():
 
 
 #playlist information
-
 def channeli_playlist():
     mydb = mysql.connector.connect(host="localhost",
                                 user="root",
@@ -235,9 +234,9 @@ def channeli_playlist():
     
 
     for index,row in df1.iterrows():
-            published_at = datetime.strptime(row['PublishedAt'], '%Y-%m-%dT%H:%M:%SZ')
+            published_at = datetime.strptime(row['PublishedAt'], '%Y-%m-%dT%H:%M:%SZ')#used to convert string into date time object 
 
-            formatted_published_at = published_at.strftime('%Y-%m-%d %H:%M:%S')
+            formatted_published_at = published_at.strftime('%Y-%m-%d %H:%M:%S')#data time object is then changed based on format used in strftime
 
             
             inser_query='''insert ignore into playlisti(Playlist_Id,
@@ -301,7 +300,7 @@ def channeli_video():
     df2 = pd.DataFrame(vi_list)
     
     for index, row in df2.iterrows():
-        tags_str = ', '.join(row['Tags']) if isinstance(row['Tags'], list) else str(row['Tags'])
+        tags_str = ', '.join(row['Tags']) if isinstance(row['Tags'], list) else str(row['Tags'])#separating tags using commas
 
         # Handling duration format PT10M5S
         duration_str = row['Duration']
@@ -320,7 +319,7 @@ def channeli_video():
             duration += timedelta(seconds=int(seconds_part))
 
         # Removing the 'Z' from the Published_date
-        published_date_str = re.sub(r'[^0-9T:-]', '', row['Published_date'])
+        published_date_str = re.sub(r'[^0-9T:-]', '', row['Published_date'])#removing the speacial character
         published_date = datetime.strptime(published_date_str, '%Y-%m-%dT%H:%M:%S')
 
         if row['Views'] is not None:
@@ -464,7 +463,7 @@ def show_comment():
     df3=st.dataframe(com_list)
 
     return df3
-#displaying it in Streamlit
+#displaying it in Streamlit(side bars)
 with st.sidebar:
     st.header("YouTube Data Harvesting and Warehousing :")
     st.caption("Explores YouTube trends using Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily")
@@ -478,7 +477,7 @@ with st.sidebar:
 
 
 channel_identity=st.text_input("Enter the channel ID")#channel id
-
+#button
 if st.button("Collect and Store Data in the Database:"):
     ch_iden=[]#ch_ids
     db = connections['Youtube_data']
@@ -490,11 +489,11 @@ if st.button("Collect and Store Data in the Database:"):
     else:
         insert=channels(channel_identity)
         st.success(insert)
-
+#button
 if st.button("Move to SQL"):
     status=tab()
     st.write(status)
-
+#radio buttons
 show_table=st.radio("Select the table for displaying :",("Channels","Playlists","Videos","Comments"))
 
 if show_table=="Channels":
@@ -510,13 +509,12 @@ elif show_table=="Comments":
     show_comment()
 
 #sqlconnections
-#sqlconnections
 mydb = mysql.connector.connect(host="localhost",
                                 user="root",
                                 password="12345",
                                 database="you_tube")
 mycursor = mydb.cursor()
-
+#answering the questions using dropdown feature
 question=st.selectbox("Choose your question",("1.What are the names of all the videos and their corresponding channels?",
                                               "2.Which channels have the most number of videos, and how many videos do they have?",
                                               "3.What are the top 10 most viewed videos and their respective channels?",
