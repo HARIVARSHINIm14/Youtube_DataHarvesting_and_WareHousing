@@ -1,607 +1,515 @@
-#libraries
-from googleapiclient.discovery import build
-from pymongo import MongoClient
-import mysql.connector 
+# Importing Libraries
 import pandas as pd
-from datetime import datetime,timedelta
+import mysql.connector as sql
 import streamlit as st
-import re
+import plotly.express as px
+from streamlit_option_menu import option_menu
+from PIL import Image
+from git.repo.base import Repo
+import plotly.graph_objects as go
+import webbrowser
+import matplotlib.pyplot as plt
+import seaborn as sns
+# Setting up page configuration
+st.set_page_config(page_title= "Phonepe Pulse Data Visualization | By Harivarshini M",
+                   layout= "wide",
+                   initial_sidebar_state= "expanded",
+                   menu_items={'About': """# This dashboard app is created by Harivarshini M!"""})
 
+st.sidebar.header(" 👋:violet[Hello! Welcome to the dashboard]")
 
-api_key = 'YOUTUBE API KEY'
-youtube = build('youtube', 'v3', developerKey=api_key)
+mydb = sql.connect(host="localhost",
+                   user="root",
+                   password="12345",
+                   database= "PhonePe"
+                  )
+mycursor = mydb.cursor(buffered=True)
 
-
-#channel id details
-def channel_info(channel_id):
-    api_key = 'YOUTUBE API KEY'
-    youtube = build("youtube", "v3", developerKey=api_key)
-
-    response = youtube.channels().list(
-        id=channel_id,
-        part='snippet,statistics,contentDetails'
-    )
-
-    channel_data = response.execute()
-    for i in channel_data['items']:
-        data=dict(Channel_Name=i['snippet']['title'],
-                Channel_Id=i['id'],
-                Subscribers=i['statistics']['subscriberCount'],
-                Views=i['statistics']['viewCount'],
-                Total_Videos=i['statistics']['videoCount'],
-                Channel_Description=i['snippet']['description'],
-                Playlist_Id=i['contentDetails']['relatedPlaylists']['uploads']
-                )
-    return data
-
-#playlist information
-def channel_playlist(channel_ids):
-    next_page_token = None
-    
-    playlist = []
-
-    while True:
-        request = youtube.playlists().list(
-                part='snippet,contentDetails',
-                channelId=channel_ids,
-                maxResults=50,
-                pageToken=next_page_token
-        )
-        channel_data = request.execute()
-
-        for item in channel_data['items']:
-            data = dict(
-                Playlist_Id=item['id'],
-                Title=item['snippet']['title'],
-                Channel_Id=item['snippet']['channelId'],
-                Channel_Name=item['snippet']['channelTitle'],
-                PublishedAt=item['snippet']['publishedAt'],
-                Video_Count=item['contentDetails']['itemCount']
-            )
-            playlist.append(data)
-        
-        next_page_token = channel_data.get('nextPageToken')
-        if next_page_token is None:
-            break
-
-    return playlist
-
-#video details
-def channel_vids(channel_id):
-    videos=[]
-    channel_data=youtube.channels().list(id=channel_id,part='contentDetails').execute()
-    Playlist_Id=channel_data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-    next_PageToken = None 
-    while True:
-        channel_data1=youtube.playlistItems().list(part='snippet',playlistId=Playlist_Id,maxResults=50,pageToken=next_PageToken).execute()
-        for i in range(len(channel_data1['items'])):
-            videos.append(channel_data1['items'][i]['snippet']['resourceId']['videoId'])
-        next_PageToken=channel_data1.get('nextPageToken')
-    #if all videos are retrieved at the end no video then break the while loop
-        if next_PageToken is None:
-            break
-    return videos
-
-#to get all vidoes
-def channel_videos(videos):
-    video_data = []
-    for video_s in videos:
-        request = youtube.videos().list(
-            part='snippet,contentDetails,statistics',
-            id=video_s
-        )
-        channel_id = request.execute()
-
-        for item in channel_id["items"]:
-            data = dict(
-                Channel_Name=item['snippet']['channelTitle'],
-                Channel_Id=item['snippet']['channelId'],
-                Video_Id=item['id'],
-                Title=item['snippet']['title'],
-                Tags=item['snippet'].get('tags'),
-                Thumbnails=item['snippet']['thumbnails']['default']['url'],
-                Description=item['snippet'].get('description'),
-                Published_date=item['snippet']['publishedAt'],
-                Duration=item['contentDetails']['duration'],
-                Views=item['statistics'].get('viewCount'),
-                Likes=item['statistics'].get('likeCount'),
-                Comments=item['statistics'].get('commentCount'),
-                Favourite_Count=item['statistics']['favoriteCount'],
-                Definition=item['contentDetails']['definition'],
-                Caption=item['contentDetails']['caption']
-            )
-            video_data.append(data)
-    return video_data
-
-
-#comments details
-def channel_comments(videos):
-    Comment_data=[]
-    try:
-        for video_id in videos:
-            request = youtube.commentThreads().list(
-                part='snippet',
-                videoId=video_id,
-                maxResults=50
-            )
-            channel_data = request.execute()
-            for item in channel_data['items']:
-                data = dict(
-                    Comment_Id=item['snippet']['topLevelComment']['id'],
-                    Video_Id=item['snippet']['topLevelComment']['snippet']['videoId'],
-                    Comment_Text=item['snippet']['topLevelComment']['snippet']['textDisplay'],
-                    Comment_Author=item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
-                    Comment_Published=item['snippet']['topLevelComment']['snippet']['publishedAt']
-                )
-                Comment_data.append(data)
-    except:
-        pass
-    return Comment_data
-#mongo connections
-connections=MongoClient("MONGO DB CONNECTION LINK")
-db = connections['DATABASE NAME']
-def channels(channel_id):
-    ch_detail=channel_info(channel_id)
-    ch_playlist=channel_playlist(channel_id)
-    ch_videoid=channel_vids(channel_id)
-    ch_video=channel_videos( ch_videoid)
-    ch_comment=channel_comments( ch_videoid)
-    col=db['TABLES']
-    col.insert_one({"channel_information":ch_detail,"playlist_information":ch_playlist,"video_information":ch_video,"comment_information":ch_comment})
-    return "upload completed successfully"
-    
-
-#table creation, playlist, videos, comments
-def channeli_table(one_a):
-    mydb = mysql.connector.connect(host="localhost",
-                                    user="root",
-                                    password="PASSWORD",
-                                    database="DB NAME")
-    mycursor = mydb.cursor()
-
-    create_query = '''create table if not exists channeli(Channel_Name varchar(100),
-                                                            Channel_Id varchar(80) primary key,
-                                                            Subscribers bigint,
-                                                            Views bigint,
-                                                            Total_Videos int,
-                                                            Channel_Description text,
-                                                            Playlist_Id varchar(100))'''
-
-    mycursor.execute(create_query)
-    mydb.commit()
-
-    single_channel_detail = []
-    db = connections['Youtube_data']
-    col = db['channels']
-    for ch_data in col.find({"channel_information.Channel_Name": one_a}, {'_id': 0}):
-        single_channel_detail.append(ch_data["channel_information"])
-    df_single_channel_detail = pd.DataFrame(single_channel_detail)
-
-    for index, row in df_single_channel_detail.iterrows():
-        inser_query = '''insert ignore into channeli(Channel_Name,
-                                                    Channel_Id, 
-                                                    Subscribers,
-                                                    Views,
-                                                    Total_Videos,
-                                                    Channel_Description,
-                                                    Playlist_Id)
-                                                    
-                                                    values(%s,%s,%s,%s,%s,%s,%s)'''
-        values = (row['Channel_Name'],
-                  row['Channel_Id'],
-                  row['Subscribers'],
-                  row['Views'],
-                  row['Total_Videos'],
-                  row['Channel_Description'],
-                  row['Playlist_Id'])
-
-        try:
-            mycursor.execute(inser_query, values)
-            mydb.commit()
-        except:
-            news = f"Your provided channel name : {one_a} is already existing"
-            st.write(news)
-            return news
-
-
-
-#playlist information
-def channeli_playlist(one_a):
-    mydb = mysql.connector.connect(host="localhost",
-                                user="root",
-                                password="PASSWORD",
-                                database="DB NAME")
-    mycursor = mydb.cursor()   
-
-    create_query ='''create table if not exists playlisti(Playlist_Id varchar(100) primary key,
-                                                            Title varchar(100),
-                                                            Channel_Id varchar(100),
-                                                            Channel_Name varchar(100),
-                                                            PublishedAt timestamp,
-                                                            Video_Count int)'''
-
-
-    mycursor.execute(create_query)
-    mydb.commit()
-
-    single_playlist_details=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for ch_data in col.find({"channel_information.Channel_Name":one_a},{'_id':0}):
-          single_playlist_details.append(ch_data["playlist_information"])
-    df_single_playlist_details=pd.DataFrame(single_playlist_details[0])
-    
-
-    for index,row in df_single_playlist_details.iterrows():
-            published_at = datetime.strptime(row['PublishedAt'], '%Y-%m-%dT%H:%M:%SZ')#used to convert string into date time object 
-
-            formatted_published_at = published_at.strftime('%Y-%m-%d %H:%M:%S')#data time object is then changed based on format used in strftime
-
-            
-            inser_query='''insert ignore into playlisti(Playlist_Id,
-                                                Title,
-                                                Channel_Id,
-                                                Channel_Name,
-                                                PublishedAt,
-                                                Video_Count)
-                                                
-                                                
-                                                values(%s,%s,%s,%s,%s,%s)'''
-            
-            
-            values=(row['Playlist_Id'],
-                    row['Title'],
-                    row['Channel_Id'],
-                    row['Channel_Name'],
-                    formatted_published_at,
-                    row['Video_Count'])
-        
-            mycursor.execute(inser_query,values)
-            mydb.commit()
-    
-# video details
-def channeli_video(one_a):
-    mydb = mysql.connector.connect(host="localhost", user="root", password="PASSWORD", database="DB NAME")
-    mycursor = mydb.cursor()
-
-    create_query = '''create table if not exists videosi(
-                        Channel_Name varchar(100),
-                        Channel_Id varchar(100),
-                        Video_Id varchar(30) primary key,
-                        Title varchar(150),
-                        Tags text,
-                        Thumbnails varchar(200),
-                        Description text,
-                        Published_date timestamp,
-                        Duration time,
-                        Views bigint,
-                        Likes bigint,
-                        Comments int,
-                        Favourite_Count int,
-                        Definition varchar(20),
-                        Caption varchar(50)
-                    )'''
-
-    mycursor.execute(create_query)
-    mydb.commit()
-
-    single_video_details=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for ch_data in col.find({"channel_information.Channel_Name":one_a},{'_id':0}):
-            single_video_details.append(ch_data["video_information"])
-    df_single_video_details=pd.DataFrame(single_video_details[0])
-    
-    for index, row in df_single_video_details.iterrows():
-        tags_str = ', '.join(row['Tags']) if isinstance(row['Tags'], list) else str(row['Tags'])#separating tags using commas
-
-        # Handling duration format PT10M5S
-        duration_str = row['Duration']
-        duration = timedelta()
-
-        if 'H' in duration_str:
-            hours_part = duration_str.split('H')[0].lstrip('PT')
-            duration += timedelta(hours=int(hours_part))
-
-        if 'M' in duration_str:
-            minutes_part = duration_str.split('H')[-1].split('M')[0].lstrip('PT')
-            duration += timedelta(minutes=int(minutes_part))
-
-        if 'S' in duration_str:
-            seconds_part = duration_str.split('M')[-1].split('S')[0].lstrip('PT')
-            duration += timedelta(seconds=int(seconds_part))
-
-        # Removing the 'Z' from the Published_date
-        published_date_str = re.sub(r'[^0-9T:-]', '', row['Published_date'])#removing the speacial character
-        published_date = datetime.strptime(published_date_str, '%Y-%m-%dT%H:%M:%S')
-
-        if row['Views'] is not None:
-            row['Views'] = int(row['Views'])
-
-        inser_query = '''insert ignore into videosi(Channel_Name,
-                                                    Channel_Id,
-                                                    Video_Id,
-                                                    Title,
-                                                    Tags,
-                                                    Thumbnails,
-                                                    Description,
-                                                    Published_date,
-                                                    Duration,
-                                                    Views,
-                                                    Likes,
-                                                    Comments,
-                                                    Favourite_Count,
-                                                    Definition,
-                                                    Caption)
-                            values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'''
-
-        values = (row['Channel_Name'],
-                  row['Channel_Id'],
-                  row['Video_Id'],
-                  row['Title'],
-                  tags_str,
-                  row['Thumbnails'],
-                  row['Description'],
-                  published_date,
-                  duration,
-                  row['Views'],
-                  row['Likes'],
-                  row['Comments'],
-                  row['Favourite_Count'],
-                  row['Definition'],
-                  row['Caption'])
-
-        mycursor.execute(inser_query, values)
-        mydb.commit()
-
-#comment informations
-def channeli_comment(one_a):
-    mydb = mysql.connector.connect(host="localhost",
-                                            user="root",
-                                            password="PASSWORD",
-                                            database="DB NAME")
-    mycursor = mydb.cursor()  
-    create_query ='''create table if not exists commenti(Comment_Id varchar(100) primary key,
-                                                        Video_Id varchar(50),
-                                                        Comment_Text text,
-                                                        Comment_Author varchar(150),
-                                                        Comment_Published timestamp)'''
-        
-        
-    mycursor.execute(create_query)
-    mydb.commit()
-
-    single_comments_details=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for ch_data in col.find({"channel_information.Channel_Name":one_a},{'_id':0}):
-        single_comments_details.append(ch_data["comment_information"])
-    df_single_comments_details=pd.DataFrame(single_comments_details[0])
-
-    for index, row in df_single_comments_details.iterrows():
-        inser_query = '''insert ignore into commenti(Comment_Id,
-                                            Video_Id,
-                                            Comment_Text,
-                                            Comment_Author,
-                                            Comment_Published)
-                        values(%s,%s,%s,%s,%s)'''
-
-        # Convert Comment_Published to MySQL datetime format
-        formatted_comment_published = datetime.strptime(row['Comment_Published'], '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
-
-        values = (row['Comment_Id'],
-                row['Video_Id'],
-                row['Comment_Text'],
-                row['Comment_Author'],
-                formatted_comment_published)  # Use the formatted datetime here
-
-        
-        mycursor.execute(inser_query, values)
-        mydb.commit()
-
-#all channels
-def tab(one):
-    news =channeli_table(one)
-    if news:
-        return news
-    else:
-        channeli_playlist(one)
-        channeli_video(one)
-        channeli_comment(one)
-        return "tables are created successfully"
-
-#to show all the details
-#1.channels
-def show_channel():
-    ch_list=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for ch_data in col.find({},{'_id':0,'channel_information':1}):
-        ch_list.append(ch_data['channel_information'])
-    df=st.dataframe(ch_list)  
-
-    return df 
-
-#2.Playlist
-def show_playlist():
-    pl_list=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for pl_data in col.find({},{'_id':0,'playlist_information':1}):
-        for i in range(len(pl_data['playlist_information'])):
-            pl_list.append(pl_data['playlist_information'][i])
-    df1=st.dataframe(pl_list)
-    return df1
-#3.Viedos
-def show_video():
-    vi_list=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for vi_data in col.find({},{'_id':0,'video_information':1}):
-        for i in range(len(vi_data['video_information'])):
-            vi_list.append(vi_data['video_information'][i])
-    df2=st.dataframe(vi_list)
-
-    return df2
-#4.Comments
-def show_comment():
-    com_list=[]
-    db = connections['Youtube_data']
-    col=db['channels']
-    for com_data in col.find({},{'_id':0,'comment_information':1}):
-        for i in range(len(com_data['comment_information'])):
-            com_list.append(com_data['comment_information'][i])
-    df3=st.dataframe(com_list)
-
-    return df3
-#displaying it in Streamlit(side bars)
+# Creating option menu in the side bar
 with st.sidebar:
-    st.header("YouTube Data Harvesting and Warehousing :")
-    st.caption("Explores YouTube trends using Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily")
-    st.title(":black[YOUTUBE DATA HARVESTING AND WAREHOUSING]")
-    st.header("Skill Gained: ")
-    st.caption("Scripting in Python")
-    st.caption("Data Collection")
-    st.caption("MongoDB")
-    st.caption("API integration")
-    st.caption("Data Management using MongoDB and SQL")
+    selected = option_menu("Menu", ["Home","Top Charts","Explore Data","About"], 
+                icons=["house","graph-up-arrow","bar-chart-line", "exclamation-circle"],
+                menu_icon= "menu-button-wide",
+                default_index=0,
+                styles={"nav-link": {"font-size": "20px", "text-align": "left", "margin": "-2px", "--hover-color": "#6F36AD"},
+                        "nav-link-selected": {"background-color": "#6F36AD"}})
+
+# MENU 1 - HOME
+if selected=="Home":
+    st.image("C:/Users/hariv/OneDrive/Desktop/Data Science/Python/Phone_Pe/images/phonepe-logo-icon.webp", width=100)
+    st.title("PhonePe - Data Visualization and Exploration ")
+    st.markdown("### :chart_with_upwards_trend: :violet[Data Visualization and Exploration using Streamlit and Plotly]")
+    col1,col2 = st.columns([4,2],gap="medium")
+    with col1:
+        
+        st.markdown("####  :In this streamlit web app you can visualize the phonepe pulse data and gain lot of insights on transactions, number of users, top 10 state, district, pincode and which brand has most number of users and so on. Bar charts, Pie charts and Geo map visualization are used to get some insights.")
+        st.markdown("### :violet[Technologies used :]") 
+
+        st.markdown("#### :Github Cloning, Python, Pandas, MySQL,mysql-connector-python, Streamlit, Plotly")
+
+        
+    with col2:
+        st.image(r"C:\\Users\\hariv\\OneDrive\\Desktop\\Data Science\\Python\\Phone_Pe\\images\\data analaysis.gif")
+    
+
+# MENU 2 - TOP CHARTS
+if selected == "Top Charts":
+    st.markdown("## :violet[Top Charts]")
+    colum1,colum2= st.columns([1,1.5],gap="large")
+    with colum1:
+        st.image(r'C:\\Users\\hariv\\OneDrive\\Desktop\\Data Science\\Python\\Phone_Pe\\images\\topcharts.gif')
+
+    with colum2:
+        st.info(
+                """
+                #### From this menu we can get insights like :
+                - Overall ranking on a particular Year and Quarter.
+                - Top 10 State, District, Pincode based on Total number of transaction and Total amount spent on phonepe.
+                - Top 10 State, District, Pincode based on Total phonepe users and their app opening frequency.
+                - Top 10 mobile brands and its percentage based on the how many people use phonepe.
+                """,icon="🔍"
+                )
+    Type = st.selectbox("**Type**", ("Transactions", "Users"))
+    Year = st.selectbox("Year",list(range(2018,2023)))
+    Quarter = st.selectbox("Quarter", list(range(1,5)))
+# Top Charts - TRANSACTIONS    
+    if Type == "Transactions":
+        col1,col2,col3 = st.columns([1,1,1],gap="small")
+        
+        def create_donut_chart(df, title):
+            fig = go.Figure(data=[go.Pie(labels=df['Label'], values=df['Total_Amount'], hole=0.4)])
+            fig.update_traces(textposition='inside', textinfo='percent+label', marker=dict(colors=px.colors.sequential.Agsunset))
+            fig.update_layout(title=title)
+            return fig
+                    
+# Query and create donut charts
+        with col1:
+            st.markdown("### :violet[State]")
+            mycursor.execute(f"SELECT state, SUM(Transaction_count) AS Total_Transactions_Count, SUM(Transaction_amount) AS Total FROM agg_trans WHERE year = {Year} AND quarter = {Quarter} GROUP BY state ORDER BY Total DESC LIMIT 10")
+            df_state = pd.DataFrame(mycursor.fetchall(), columns=['Label', 'Transactions_Count', 'Total_Amount'])
+            fig_state = create_donut_chart(df_state, 'Top 10 States by Total Amount')
+            st.plotly_chart(fig_state, use_container_width=True)
+
+        with col2:
+            st.markdown("### :violet[District]")
+            mycursor.execute(f"SELECT district, SUM(Count) AS Total_Count, SUM(Amount) AS Total FROM map_trans WHERE year = {Year} AND quarter = {Quarter} GROUP BY district ORDER BY Total DESC LIMIT 10")
+            df_district = pd.DataFrame(mycursor.fetchall(), columns=['Label', 'Transactions_Count', 'Total_Amount'])
+            fig_district = create_donut_chart(df_district, 'Top 10 Districts by Total Amount ')
+            st.plotly_chart(fig_district, use_container_width=True)
+
+        with col3:
+            st.markdown("### :violet[Pincode]")
+            mycursor.execute(f"SELECT pincode, SUM(Transaction_count) AS Total_Transactions_Count, SUM(Transaction_amount) AS Total FROM top_trans WHERE year = {Year} AND quarter = {Quarter} GROUP BY pincode ORDER BY Total DESC LIMIT 10")
+            df_pincode = pd.DataFrame(mycursor.fetchall(), columns=['Label', 'Transactions_Count', 'Total_Amount'])
+            fig_pincode = create_donut_chart(df_pincode, 'Top 10 Pincodes by Total Amount')
+            st.plotly_chart(fig_pincode, use_container_width=True)
+
+        #vertical chart
+        df_combined = pd.concat([df_state, df_district, df_pincode], keys=['State', 'District', 'Pincode'])
+        fig = px.bar(df_combined, x=df_combined.index.get_level_values(1), y='Total_Amount', color=df_combined.index.get_level_values(0),
+                    barmode='group', orientation='v', labels={'Total_Amount': 'Total Amount'},
+                    title='Top 10 States, Districts, and Pincodes by Total Amount')
+        st.plotly_chart(fig, use_container_width=True)
+
+                    
+# Top Charts - USERS          
+    if Type == "Users":
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 2], gap="small")       
+
+        with col1:
+            st.markdown("### :violet[Brands]")
+            if Year == 2022 and Quarter in [2, 3, 4]:
+                st.markdown("#### Sorry No Data to Display for 2022 Qtr 2,3,4")
+            else:
+                mycursor.execute(f"select brand_name, sum(count) as Total_Count, avg(percentage)*100 as Avg_Percentage from agg_user where year = {Year} and quarter = {Quarter} group by brand_name order by Total_Count desc limit 10")
+                df_brand = pd.DataFrame(mycursor.fetchall(), columns=['Brand', 'Total_Users', 'Avg_Percentage'])
+                fig_brand = px.bar(df_brand,
+                                x='Brand',
+                                y="Total_Users",
+                                title='Top 10 Brands',
+                                color='Avg_Percentage',
+                                color_continuous_scale=px.colors.sequential.Agsunset)
+                st.plotly_chart(fig_brand, use_container_width=True)   
+            
+        with col2:
+            st.markdown("### :violet[District]")
+            mycursor.execute(f"select district, sum(Registerd_User) as Total_Users, sum(Appopens) as Total_Appopens from map_user where year = {Year} and quarter = {Quarter} group by district order by Total_Users desc limit 10")
+            df_district = pd.DataFrame(mycursor.fetchall(), columns=['District', 'Total_Users', 'Total_Appopens'])
+            df_district['Total_Users'] = df_district['Total_Users'].astype(float)
+            fig_district = px.bar(df_district,
+                                x='District',
+                                y='Total_Users',
+                                title='Top 10 Districts',
+                                color='Total_Users',
+                                color_continuous_scale=px.colors.sequential.Agsunset)
+            st.plotly_chart(fig_district, use_container_width=True)
+
+        with col3:
+            st.markdown("### :violet[Pincode]")
+            mycursor.execute(f"select Pincode, sum(RegisteredUsers) as Total_Users from top_user where year = {Year} and quarter = {Quarter} group by Pincode order by Total_Users desc limit 10")
+            df_pincode = pd.DataFrame(mycursor.fetchall(), columns=['Pincode', 'Total_Users'])
+            fig_pincode = px.bar(df_pincode,
+                                x='Pincode',
+                                y='Total_Users',
+                                title='Top 10 Pincodes',
+                                color='Total_Users',
+                                color_discrete_sequence=px.colors.sequential.Agsunset)
+            st.plotly_chart(fig_pincode, use_container_width=True)
+
+        with col4:
+            st.markdown("### :violet[State]")
+            mycursor.execute(f"select State, sum(Registerd_user) as Total_Users, sum(Appopens) as Total_Appopens from map_user where year = {Year} and quarter = {Quarter} group by State order by Total_Users desc limit 10")
+            df_state = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Users', 'Total_Appopens'])
+            fig_state = px.bar(df_state,
+                            x='State',
+                            y='Total_Users',
+                            title='Top 10 States',
+                            color='Total_Users',
+                            color_continuous_scale=px.colors.sequential.Agsunset)
+            st.plotly_chart(fig_state, use_container_width=True)
+
+ # MENU 3 - EXPLORE DATA
+if selected == "Explore Data":
+    st.header("Phone Pe - EXPLORING DATA 🔎")
+    col1, col2 = st.columns(2)
+    with col1:
+        Year = st.slider("Year", min_value=2018, max_value=2022)
+        Quarter = st.slider("Quarter", min_value=1, max_value=4)
+    with col2:  
+        Type = st.selectbox("Type", ("Transactions", "Users"))
+    colu1, colu2 = st.columns(2)
+    
+# EXPLORE DATA - TRANSACTIONS
+    if Type == "Transactions": 
+        # Overall State Data - TRANSACTIONS AMOUNT - INDIA MAP 
+        with colu1:
+            st.markdown("## :violet[Overall State Data - Transactions Amount]")
+            mycursor.execute(f"select state, sum(count) as Total_Transactions, sum(amount) as Total_amount from map_trans where year = {Year} and quarter = {Quarter} group by state order by state")
+            df1 = pd.DataFrame(mycursor.fetchall(),columns= ['State', 'Total_Transactions', 'Total_amount'])
+            df2 = pd.read_csv('Statenames.csv')
+            df1.State = df2
+
+            fig = px.choropleth(df1,geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                      featureidkey='properties.ST_NM',
+                      locations='State',
+                      color='Total_amount',
+                      color_continuous_scale='sunset')
+
+            fig.update_geos(fitbounds="locations", visible=False)
+            st.plotly_chart(fig,use_container_width=True)
+            
+        # Overall State Data - TRANSACTIONS COUNT - INDIA MAP
+        with colu2:
+            
+            st.markdown("## :violet[Overall State Data - Transactions Count]")
+            mycursor.execute(f"select state, sum(count) as Total_Transactions, sum(amount) as Total_amount from map_trans where year = {Year} and quarter = {Quarter} group by state order by state")
+            df1 = pd.DataFrame(mycursor.fetchall(),columns= ['State', 'Total_Transactions', 'Total_amount'])
+            df2 = pd.read_csv('Statenames.csv')
+            df1.Total_Transactions = df1.Total_Transactions.astype(int)
+            df1.State = df2
+
+            fig = px.choropleth(df1,geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                      featureidkey='properties.ST_NM',
+                      locations='State',
+                      color='Total_Transactions',
+                      color_continuous_scale='sunset')
+
+            fig.update_geos(fitbounds="locations", visible=False)
+            st.plotly_chart(fig,use_container_width=True)
+                    
+            
+# BAR CHART - TOP PAYMENT TYPE
+        st.markdown("## :violet[Top Payment Type]")
+        mycursor.execute(f"select Transaction_type, sum(Transaction_count) as Total_Transactions, sum(Transaction_amount) as Total_amount from agg_trans where year= {Year} and quarter = {Quarter} group by transaction_type order by Transaction_type")
+        df = pd.DataFrame(mycursor.fetchall(), columns=['Transaction_type', 'Total_Transactions','Total_amount'])
+
+        # Pie Chart
+        fig = px.pie(df,
+              title='Transaction Types vs Total Transactions',
+              names="Transaction_type",
+              values="Total_Transactions",
+              color_discrete_sequence=px.colors.sequential.Agsunset,
+              hole=0.3)
+
+        chart = st.plotly_chart(fig, use_container_width=False)
+        click = st.button("Click to explode")
+        col1, col2 = st.columns(2)
+        if click:
+            fig.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=20,
+                            marker=dict(colors=px.colors.sequential.Agsunset, line=dict(color='#000000', width=2)))
+            chart.plotly_chart(fig)
+            with col1:
+                return_click = st.button("Return to normal")
+                if return_click:
+                    fig.update_traces(hole=0.3)
+                    chart.plotly_chart(fig)
+  
+        # Function to plot a bar chart
+        def plot_bar_chart(df, x_column, y_column, title):
+            fig, ax = plt.subplots(figsize=(18, 8))
+            sns.barplot(x=x_column, y=y_column, data=df, ax=ax,palette='husl')
+            ax.set_xlabel(x_column)
+            ax.set_ylabel(y_column)
+            ax.set_title(title)
+            ax.tick_params(axis='x', rotation=45)  
+            st.pyplot(fig)
+
+        # Function to plot a line chart
+        def plot_line_chart(df, x_column, y_column, title):
+            fig, ax = plt.subplots(figsize=(10, 6))
+            sns.lineplot(x=x_column, y=y_column, data=df, ax=ax )
+            ax.set_xlabel(x_column)
+            ax.set_ylabel(y_column)
+            ax.set_title(title)
+            ax.tick_params(axis='x', rotation=45)  # Removed ha='right'
+            plt.tight_layout()
+            st.pyplot(fig)
+
+        # Ques1: Top Mobile Brands of Transaction Count (Bar Chart)
+        def ques1():
+            sql_query = """
+                SELECT Brand_name, SUM(Count) AS Total_Count
+                FROM agg_user
+                GROUP BY Brand_name
+                ORDER BY Total_Count DESC;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['Brand_name', 'Total_Count'])
+            plot_bar_chart(df, 'Brand_name', 'Total_Count', 'Top Mobile Brands of Transaction Count')
+
+        # Ques2: States With Lowest Transaction Amount (Bar Chart)
+        def ques2():
+            sql_query = """
+                SELECT State, SUM(Transaction_amount) AS Total_Amount
+                FROM agg_trans
+                GROUP BY State
+                ORDER BY Total_Amount ASC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Amount'])
+            plot_bar_chart(df, 'State', 'Total_Amount', 'States With Lowest Transaction Amount')
+
+        # Ques3: Districts With Highest Transaction Amount (Line Chart)
+        def ques3():
+            sql_query = """
+                SELECT District, SUM(Amount) AS Total_Amount
+                FROM map_trans
+                GROUP BY District
+                ORDER BY Total_Amount DESC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['District', 'Total_Amount'])
+            plot_line_chart(df, 'District', 'Total_Amount', 'Districts With Highest Transaction Amount')
+
+        # Ques4: Top 10 Districts With Lowest Transaction Amount (Bar Chart)
+        def ques4():
+            sql_query = """
+                SELECT District, SUM(Amount) AS Total_Amount
+                FROM map_trans
+                GROUP BY District
+                ORDER BY Total_Amount ASC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['District', 'Total_Amount'])
+            plot_bar_chart(df, 'District', 'Total_Amount', 'Top 10 Districts With Lowest Transaction Amount')
+
+        # Ques5: Top 10 States With App Opens (Line Chart)
+        def ques5():
+            sql_query = """
+                SELECT State, SUM(Appopens) AS Total_Appopens
+                FROM map_user
+                GROUP BY State
+                ORDER BY Total_Appopens DESC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Appopens'])
+            plot_line_chart(df, 'State', 'Total_Appopens', 'Top 10 States With App Opens')
+
+        # Ques6: Least 10 States With App Opens (Line Chart)
+        def ques6():
+            sql_query = """
+                SELECT State, SUM(AppOpens) AS Total_AppOpens
+                FROM map_user
+                GROUP BY State
+                ORDER BY Total_AppOpens ASC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_AppOpens'])
+            plot_line_chart(df, 'State', 'Total_AppOpens', 'Least 10 States With App Opens')
+
+        # Ques7: States With Lowest Transaction Count (Bar Chart)
+        def ques7():
+            sql_query = """
+                SELECT State, SUM(Transaction_count) AS Total_Transaction_count
+                FROM agg_trans
+                GROUP BY State
+                ORDER BY Total_Transaction_count ASC;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Transaction_count'])
+            plot_bar_chart(df, 'State', 'Total_Transaction_count', 'States With Lowest Transaction Count')
+
+        # Ques8: States With Highest Transaction Count (Bar Chart)
+        def ques8():
+            sql_query = """
+                SELECT State, SUM(Transaction_count) AS Total_Transaction_count
+                FROM agg_trans
+                GROUP BY State
+                ORDER BY Total_Transaction_count DESC;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Transaction_count'])
+            plot_bar_chart(df, 'State', 'Total_Transaction_count', 'States With Highest Transaction Count')
+
+        # Ques9: States With Highest Transaction Amount (Line Chart)
+        def ques9():
+            sql_query = """
+                SELECT State, SUM(Transaction_amount) AS Total_Amount
+                FROM agg_trans
+                GROUP BY State
+                ORDER BY Total_Amount DESC
+                LIMIT 10;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Amount'])
+            plot_line_chart(df, 'State', 'Total_Amount', 'States With Highest Transaction Amount')
+
+        # Ques10: Top 50 Districts With Lowest Transaction Amount (Pie Chart)
+        def ques10():
+            sql_query = """
+                SELECT District, SUM(Amount) AS Total_Amount
+                FROM map_trans
+                GROUP BY District
+                ORDER BY Total_Amount ASC
+                LIMIT 50;
+                """
+            mycursor.execute(sql_query)
+            df = pd.DataFrame(mycursor.fetchall(), columns=['District', 'Total_Amount'])
+            plot_bar_chart(df, 'District','Total_Amount', 'Top 50 Districts With Lowest Transaction Amount')
+
+        # Streamlit UI
+        st.set_option('deprecation.showPyplotGlobalUse', False)
+
+        ques= st.selectbox("Select the question",('Top Brands Of Mobiles Used','States With Lowest Transaction Amount',
+                                        'Districts With Highest Transaction Amount','Top 10 Districts With Lowest Transaction Amount',
+                                        'Top 10 States With AppOpens','Least 10 States With AppOpens','States With Lowest Transaction Count',
+                                        'States With Highest Transaction Count','States With Highest Transaction Amount',
+                                        'Top 50 Districts With Lowest Transaction Amount'))
+
+        # Call the respective function based on the selected question
+        if ques == 'Top Brands Of Mobiles Used':
+            ques1()
+        elif ques == 'States With Lowest Transaction Amount':
+            ques2()
+        elif ques == 'Districts With Highest Transaction Amount':
+            ques3()
+        elif ques == 'Top 10 Districts With Lowest Transaction Amount':
+            ques4()
+        elif ques == 'Top 10 States With AppOpens':
+            ques5()
+        elif ques == 'Least 10 States With AppOpens':
+            ques6()
+        elif ques == 'States With Lowest Transaction Count':
+            ques7()
+        elif ques == 'States With Highest Transaction Count':
+            ques8()
+        elif ques == 'States With Highest Transaction Amount':
+            ques9()
+        elif ques == 'Top 50 Districts With Lowest Transaction Amount':
+            ques10()
 
 
-channel_identity=st.text_input("Enter the channel ID")#channel id
-#button
-if st.button("Collect and Store Data in the Database:"):
-    ch_iden=[]#ch_ids
-    db = connections['Youtube_data']
-    col=db['channels']
-    for ch_data in col.find({},{'_id':0,'channel_information':1}):
-        ch_iden.append(ch_data['channel_information']['Channel_Id'])
-    if channel_identity in ch_iden:
-        st.success("Channel details of the given channel id already existed")
-    else:
-        insert=channels(channel_identity)
-        st.success(insert)
+        
 
-all_channels=[]
-db = connections['Youtube_data']
-col=db['channels']
-for ch_data in col.find({},{'_id':0,'channel_information':1}):
-    all_channels.append(ch_data["channel_information"]["Channel_Name"])
+# BAR CHART TRANSACTIONS - DISTRICT WISE DATA            
+        st.markdown("# ")
+        st.markdown("# ")
+        st.markdown("# ")
+        st.markdown("## :violet[Select any State to explore more]")
+        selected_state = st.selectbox("",
+                             ('andaman-&-nicobar-islands','andhra-pradesh','arunachal-pradesh','assam','bihar',
+                              'chandigarh','chhattisgarh','dadra-&-nagar-haveli-&-daman-&-diu','delhi','goa','gujarat','haryana',
+                              'himachal-pradesh','jammu-&-kashmir','jharkhand','karnataka','kerala','ladakh','lakshadweep',
+                              'madhya-pradesh','maharashtra','manipur','meghalaya','mizoram',
+                              'nagaland','odisha','puducherry','punjab','rajasthan','sikkim',
+                              'tamil-nadu','telangana','tripura','uttar-pradesh','uttarakhand','west-bengal'),index=30)
+         
+        mycursor.execute(f"select State, District,year,quarter, sum(count) as Total_Transactions, sum(amount) as Total_amount from map_trans where year = {Year} and quarter = {Quarter} and State = '{selected_state}' group by State, District,year,quarter order by state,district")
+        
+        df1 = pd.DataFrame(mycursor.fetchall(), columns=['State','District','Year','Quarter',
+                                                         'Total_Transactions','Total_amount'])
+        fig = px.bar(df1,
+                     title=selected_state,
+                     x="Total_Transactions",
+                     y="District",
+                     orientation='h',
+                     color='Total_amount',
+                     color_continuous_scale=px.colors.sequential.Agsunset)
+        st.plotly_chart(fig,use_container_width=True)
+        
+# EXPLORE DATA - USERS      
+    if Type == "Users":
+        
+        # Overall State Data - TOTAL APPOPENS - INDIA MAP
+        st.markdown("## :violet[Overall State Data - User App opening frequency]")
+        mycursor.execute(f"select state, sum(Registerd_user) as Total_Users, sum(Appopens) as Total_Appopens from map_user where year = {Year} and quarter = {Quarter} group by state order by state")
+        df1 = pd.DataFrame(mycursor.fetchall(), columns=['State', 'Total_Users','Total_Appopens'])
+        df2 = pd.read_csv('Statenames.csv')
+        df1.Total_Appopens = df1.Total_Appopens.astype(float)
+        df1.State = df2
+        
+        fig = px.choropleth(df1,geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                  featureidkey='properties.ST_NM',
+                  locations='State',
+                  color='Total_Appopens',
+                  color_continuous_scale='sunset')
 
-var = st.selectbox("Select the channel",all_channels)
-#button
-if st.button("Move to SQL"):
-    status=tab(var)
-    st.write(status)
-#radio buttons
-show_table=st.radio("Select the table for displaying :",("Channels","Playlists","Videos","Comments"))
+        fig.update_geos(fitbounds="locations", visible=False)
+        st.plotly_chart(fig,use_container_width=True)
+        
+        # BAR CHART TOTAL UERS - DISTRICT WISE DATA 
+        st.markdown("## :violet[Select any State to explore more]")
+        selected_state = st.selectbox("",
+                             ('andaman-&-nicobar-islands','andhra-pradesh','arunachal-pradesh','assam','bihar',
+                              'chandigarh','chhattisgarh','dadra-&-nagar-haveli-&-daman-&-diu','delhi','goa','gujarat','haryana',
+                              'himachal-pradesh','jammu-&-kashmir','jharkhand','karnataka','kerala','ladakh','lakshadweep',
+                              'madhya-pradesh','maharashtra','manipur','meghalaya','mizoram',
+                              'nagaland','odisha','puducherry','punjab','rajasthan','sikkim',
+                              'tamil-nadu','telangana','tripura','uttar-pradesh','uttarakhand','west-bengal'),index=30)
+        
+        mycursor.execute(f"select State,year,quarter,District,sum(Registerd_user) as Total_Users, sum(Appopens) as Total_Appopens from map_user where year = {Year} and quarter = {Quarter} and state = '{selected_state}' group by State, District,year,quarter order by state,district")
+        
+        df = pd.DataFrame(mycursor.fetchall(), columns=['State','year', 'quarter', 'District', 'Total_Users','Total_Appopens'])
+        df.Total_Users = df.Total_Users.astype(int)
+        
+        fig = px.bar(df,
+                     title=selected_state,
+                     x="Total_Users",
+                     y="District",
+                     orientation='h',
+                     color='Total_Users',
+                     color_continuous_scale=px.colors.sequential.Agsunset)
+        st.plotly_chart(fig,use_container_width=True)
 
-if show_table=="Channels":
-    show_channel()
+    
+# MENU 4 - ABOUT
+if selected == "About":
+    st.markdown("## :violet[Phone Pe - ABOUT]")
+    col1,col2=st.columns(2)
+    with col1:
+        st.caption('PhonePe is a mobile payment platform using which you can transfer money using UPI, recharge phone numbers, pay utility bills, etc. PhonePe works on the Unified Payment Interface (UPI) system and all you need is to feed in your bank account details and create a UPI ID. There is no need to recharge the wallet, because the money will be directly debited from your bank account at the click of a button in a safe and secure manner')
+    
+    with col2:
+        st.video(r"C:\\Users\\hariv\\OneDrive\\Desktop\\Data Science\\Python\\Phone_Pe\\images\\about.mp4")
+    
+    st.subheader('Click the button to Download Phone Pe')
 
-elif show_table=="Playlists":
-    show_playlist()
-
-elif show_table == "Videos":
-    show_video()
-
-elif show_table=="Comments":
-    show_comment()
-
-#sqlconnections
-mydb = mysql.connector.connect(host="localhost",
-                                user="root",
-                                password="12345",
-                                database="you_tube")
-mycursor = mydb.cursor()
-#answering the questions using dropdown feature
-question=st.selectbox("Choose your question",("1.What are the names of all the videos and their corresponding channels?",
-                                              "2.Which channels have the most number of videos, and how many videos do they have?",
-                                              "3.What are the top 10 most viewed videos and their respective channels?",
-                                              "4.How many comments were made on each video, and what are their corresponding video names?",
-                                              "5.Which videos have the highest number of likes, and what are their corresponding channel names?",
-                                              "6.What is the total number of likes and dislikes for each video, and what are their corresponding video names?",
-                                              "7.What is the total number of views for each channel, and what are their corresponding channel names?",
-                                              "8.What are the names of all the channels that have published videos in the year 2022?",
-                                              "9.What is the average duration of all videos in each channel, and what are their corresponding channel names?",
-                                              "10.Which videos have the highest number of comments, and what are their corresponding channel names?"))
-
-if question=="1.What are the names of all the videos and their corresponding channels?":
-    query_1='''SELECT title AS videos, channel_name AS channelname FROM videosi'''
-    mycursor.execute(query_1)
-    t1=mycursor.fetchall()
-    df_1=pd.DataFrame(t1,columns=['Video Name','Channel Name'])
-    st.write(df_1)
-
-elif question=="2.Which channels have the most number of videos, and how many videos do they have?":
-    query_2='''select channel_name as channelname,total_videos as no_videos from channeli
-    order by total_videos desc'''   
-    mycursor.execute(query_2)
-    t2=mycursor.fetchall()
-    df_2=pd.DataFrame(t2,columns=['Channel Name','No of Videos'])
-    st.write(df_2)
-
-elif question=="3.What are the top 10 most viewed videos and their respective channels?":
-    query_3='''select views as views, channel_name as channelname, title as videotitle from videosi 
-    where views is not null order by views desc limit 10'''   
-    mycursor.execute(query_3)
-    t3=mycursor.fetchall()
-    df_3=pd.DataFrame(t3,columns=['Views','Channel Name','Video Title'])
-    st.write(df_3)
-
-elif question=="4.How many comments were made on each video, and what are their corresponding video names?":
-    query_4='''select comments as no_comments, title as videotitle from videosi where comments is not null'''   
-    mycursor.execute(query_4)
-    t4=mycursor.fetchall()
-    df_4=pd.DataFrame(t4,columns=['No of Comments','Video Title'])
-    st.write(df_4)
-
-elif question=="5.Which videos have the highest number of likes, and what are their corresponding channel names?":
-    query_5='''select title as videotitle,channel_name as channelname, likes as likecount
-                from videosi where likes is not null order by likes desc'''   
-    mycursor.execute(query_5)
-    t5=mycursor.fetchall()
-    df_5=pd.DataFrame(t5,columns=['Video Title','Channel Name','Like Count'])
-    st.write(df_5)
-
-elif question=="6.What is the total number of likes and dislikes for each video, and what are their corresponding video names?":
-    query_6='''select likes as likecount, title as videotitle from videosi'''   
-    mycursor.execute(query_6)
-    t6=mycursor.fetchall()
-    df_6=pd.DataFrame(t6,columns=['Like Count','Video Title'])
-    st.write(df_6)
-
-elif question== "7.What is the total number of views for each channel, and what are their corresponding channel names?":
-    query_7='''select channel_name as channelanme, views as totalviews from channeli'''   
-    mycursor.execute(query_7)
-    t7=mycursor.fetchall()
-    df_7=pd.DataFrame(t7,columns=['Channel Name','Total Views'])
-    st.write(df_7)
-
-elif question=="8.What are the names of all the channels that have published videos in the year 2022?" :                                        
-    query_8='''select title as video_title,published_date as videorelease,channel_name as channelname from videosi where extract(year from published_date)=2022'''   
-    mycursor.execute(query_8)
-    t8=mycursor.fetchall()
-    df_8=pd.DataFrame(t8,columns=['Video Title','Published Date','Channel Name'])
-    st.write(df_8)
-
-elif question=="9.What is the average duration of all videos in each channel, and what are their corresponding channel names?":                                             
-    query_9='''select channel_name AS channelname, SEC_TO_TIME(AVG(duration)) AS averageduration from videosi group by channel_name'''   
-    mycursor.execute(query_9)
-    t9=mycursor.fetchall()
-    df_9=pd.DataFrame(t9,columns=['Channel Name','Average Duration'])
-    T9=[]
-    for index,row in df_9.iterrows():
-        channel_title=row['Channel Name'] 
-        avg_duration=row['Average Duration']
-        avg_str=str(avg_duration)
-        T9.append(dict(channeltitle=channel_title,avg=avg_str))
-    df_99=pd.DataFrame(T9)
-    st.write(df_99)
-
-elif question=="10.Which videos have the highest number of comments, and what are their corresponding channel names?":                                             
-    query_10='''select title as videotitle, channel_name as channelname, comments as comments from videosi where comments
-                is not null order by comments desc '''   
-    mycursor.execute(query_10)
-    t10=mycursor.fetchall()
-    df_10=pd.DataFrame(t10,columns=['Video Title','Channel Name','Comments'])
-    st.write(df_10)
+    url = "https://play.google.com/store/apps/details?id=com.phonepe.app&hl=en_IN&shortlink=2kk1w03o&c=consumer_app_icon&pid=PPWeb_app_download_page&af_xp=custom&source_caller=ui"
+    if st.button("➡️Go to URL"):
+          
+        webbrowser.open_new_tab(url)
