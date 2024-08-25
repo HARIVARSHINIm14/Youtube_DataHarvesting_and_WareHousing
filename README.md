@@ -1,6 +1,4 @@
-Here's the README with the points structured as lists for better readability:
 
----
 
 # YouTube Data Harvesting and Warehousing using SQL and Streamlit
 
@@ -43,4 +41,3 @@ This project successfully creates a Streamlit application that enables users to 
 
 ---
 
-This structure should make the README easier to read and follow. Let me know if you'd like to add or change anything!
