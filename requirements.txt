@@ -3,3 +3,4 @@ pandas==2.2.1
 numpy==1.26.4
 mysql-connector-python==8.0.33
 pymongo==4.0.0
+google-api-python-client==2.60.0
