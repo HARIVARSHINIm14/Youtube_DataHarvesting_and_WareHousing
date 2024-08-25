@@ -1,6 +1,5 @@
-streamlit
-pandas
-numpy
-python
-MySQL
-MongoDB
+streamlit==1.34.0
+pandas==2.2.1
+numpy==1.26.4
+mysql-connector-python==8.0.36
+pymongo==7.0.5
