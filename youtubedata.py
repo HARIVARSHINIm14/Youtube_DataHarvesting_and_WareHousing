@@ -458,8 +458,7 @@ def show_comment():
 with st.sidebar:
     st.title("YouTube Data Harvesting:")
     st.header("Explores YouTube trends using : Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily")
-    st.image("C:\\Users\\hariv\\OneDrive\\Desktop\\Data Science\\python\\Youtube\\youtube-logo-transparent-11662415216issfzlr0ne-removebg-preview.png")
-
+    
 st.header('Youtube Data Harvesting')
 channel_identity=st.text_input("Enter the channel ID")#channel id
 #button
