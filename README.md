@@ -1,22 +1,38 @@
-# Youtube_DataHarvesting_and_WareHousing
-📊YouTube Data Harvest: Explores YouTube trends using Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily
-Youtube channel details are retrieved using Youtube data API application after getting the key from it . We are processing the channel details using PYTHON programming language,with various libraries for the given Project such as,
+**YouTube Data Harvesting and Warehousing using SQL and Streamlit**
 
-1.from googleapiclient.discovery import build - This library is part of the Google API Client library and is used for interacting with various Google services. It allows you to create a service object for making API requests and fetching data from Google services.
+**Overview**
+This project aims to develop a user-friendly Streamlit application that allows users to access and analyze data from multiple YouTube channels. The application utilizes the Google YouTube API to extract detailed information about channels and videos, stores this data in a SQL database, and provides powerful search and retrieval options within the Streamlit app.
 
-2.from pymongo import MongoClient - PyMongo is a Python driver for MongoDB, a NoSQL database. It provides a convenient way to interact with MongoDB databases.
+**Skills Takeaway**
+a.Python Scripting
+b.Data Collection
+c.Streamlit
+d.API Integration
+e.Data Management using SQL
 
-3.import mysql.connector - This library provides a Python interface for interacting with MySQL databases. It allows you to connect to a MySQL server, execute SQL queries, and manage database transactions.
+**Domain**
+Social Media
 
-4.import pandas as pd - Pandas is a powerful data manipulation library for Python. It provides data structures like DataFrames, which are efficient for handling and analyzing structured data.
+**Problem Statement**
+The objective of this project is to create a Streamlit application with the following features:
 
-5.from datetime import datetime,timedelta - The datetime module in Python provides classes for working with dates and times. 
+a.Data Retrieval: Input a YouTube channel ID and retrieve all relevant data such as channel name, subscribers, total video count, playlist ID, video ID, likes, dislikes, and comments using the Google YouTube API.
+b.Data Collection: Collect data for up to 10 different YouTube channels and store them in a data lake by clicking a button.
+c.Data Storage: Store the retrieved data in a MySQL or PostgreSQL database.
+d.Data Querying: Search and retrieve data from the SQL database using various search options, including joining tables to get comprehensive channel details.
 
-6.import streamlit as st - Streamlit is a Python library used for creating web applications with minimal effort. 
+**Approach**
+a.Set up a Streamlit App: Streamlit is used to create a simple UI where users can enter a YouTube channel ID, view channel details, and select channels to migrate to the data warehouse.
+b.Connect to the YouTube API: The Google API client library for Python is used to make requests to the YouTube API and retrieve channel and video data.
+c.Store and Clean Data: Retrieved data is temporarily stored using pandas DataFrames or other in-memory structures before being migrated to the data warehouse.
+d.Migrate Data to a SQL Data Warehouse: After collecting data for multiple channels, it is migrated to a SQL database (MySQL or PostgreSQL) for storage.
+e.Query the SQL Data Warehouse: SQL queries are used to join tables and retrieve specific channel data based on user input, leveraging SQLAlchemy for database interactions.
+f.Display Data in Streamlit: The retrieved data is displayed in the Streamlit app using its data visualization features, allowing for detailed analysis through charts and graphs.
 
-7.import re - The re module is the regular expression module in Python. It provides functions for working with regular expressions, which are powerful tools for pattern matching in strings. 
+**Results**
+This project successfully creates a Streamlit application that enables users to extract YouTube channel data, store it in a SQL database, and perform advanced queries to retrieve and analyze the data.
 
-after extracting it the details of youtube channel, it is saved in MongoDB (unstructured database) and then transefered to SQL(structured database). Once it is all done then finally it is deployed in streamlit application.
-
-
-
+**References**
+a.Streamlit Documentation: Streamlit API Reference
+b.YouTube API Reference: Google YouTube API
+c.API Data Collection Reference: Colab Notebook
