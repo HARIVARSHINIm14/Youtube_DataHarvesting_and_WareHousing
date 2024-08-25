@@ -456,17 +456,11 @@ def show_comment():
     return df3
 #displaying it in Streamlit(side bars)
 with st.sidebar:
-    st.header("YouTube Data Harvesting and Warehousing :")
-    st.caption("Explores YouTube trends using Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily")
-    st.title(":black[YOUTUBE DATA HARVESTING AND WAREHOUSING]")
-    st.header("Skill Gained: ")
-    st.caption("Scripting in Python")
-    st.caption("Data Collection")
-    st.caption("MongoDB")
-    st.caption("API integration")
-    st.caption("Data Management using MongoDB and SQL")
+    st.title("YouTube Data Harvesting:")
+    st.header("Explores YouTube trends using : Python, MySQL, MongoDB, and Streamlit. Gather data efficiently, store it smartly, and visualize insights easily")
+    st.image("C:\\Users\\hariv\\OneDrive\\Desktop\\Data Science\\python\\Youtube\\youtube-logo-transparent-11662415216issfzlr0ne-removebg-preview.png")
 
-st.header('Youtube trending analysis')
+st.header('Youtube Data Harvesting')
 channel_identity=st.text_input("Enter the channel ID")#channel id
 #button
 if st.button("Collect and Store Data in the Database:"):
@@ -493,7 +487,7 @@ if st.button("Move to SQL"):
     status=tab(var)
     st.write(status)
 #radio buttons
-show_table=st.radio("Select the table for displaying :",("Channels","Playlists","Videos","Comments"))
+show_table=st.radio("Select the option :",("Channels","Playlists","Videos","Comments"))
 
 if show_table=="Channels":
     show_channel()
@@ -514,7 +508,7 @@ mydb = mysql.connector.connect(host="localhost",
                                 database="you_tube")
 mycursor = mydb.cursor()
 #answering the questions using dropdown feature
-question=st.selectbox("Choose your question",("1.What are the names of all the videos and their corresponding channels?",
+question=st.selectbox("Choose the question",("1.What are the names of all the videos and their corresponding channels?",
                                               "2.Which channels have the most number of videos, and how many videos do they have?",
                                               "3.What are the top 10 most viewed videos and their respective channels?",
                                               "4.How many comments were made on each video, and what are their corresponding video names?",
