@@ -4,4 +4,4 @@ mysql-connector-python==8.0.33
 pandas==2.1.1
 streamlit==1.25.0
 regex==2021.11.10
-
+Pillow==9.2.0
